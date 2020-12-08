@@ -1,1 +1,1 @@
-# vk_bot_template
+vk bot template

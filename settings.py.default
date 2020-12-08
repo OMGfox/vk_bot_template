@@ -1,0 +1,97 @@
+# Please, set you api token and group id
+TOKEN = ''
+GROUP_ID =
+
+
+INTENTS = [
+    {
+        "name": "Help",
+        "tokens": ("/help",),
+        "scenario": None,
+        "answer": "Отправьте боту сообщение:\n/ticket - чтобы оформить билет\n/help - для вывода этого сообщения."
+    },
+    {
+        "name": "Booking a ticket",
+        "tokens": ("/ticket",),
+        "scenario": "booking_a_ticket",
+        "answer": None
+    }
+]
+
+SCENARIOS = {
+    "booking_a_ticket": {
+        "first_step": "step_1",
+        "steps": {
+            "step_1": {
+                "text": "Введите город отправления",
+                "failure_text": "Введенный вами город не найдет. возможно вам подойдет один из следующего списка:"
+                                " {departure_cities}",
+                "handler": "handler_departure_city",
+                "next_step": "step_2"
+            },
+            "step_2": {
+                "text": "Введите город назначения",
+                "failure_text": "Введенный вами город не найдет. возможно вам подойдет один из следующего списка:"
+                                " {destination_cities}",
+                "handler": "handler_destination_city",
+                "next_step": "step_3"
+            },
+            "step_3": {
+                "text": "Введите дату вылета в формате 01-12-2020",
+                "failure_text": "Введен не верный формат даты. Попробуйте еще раз",
+                "handler": "handler_date",
+                "next_step": "step_4"
+            },
+            "step_4": {
+                "text": "найдены следующие варианты. введите номер нужного рейса для продолжения:\n{flights_variants}",
+                "failure_text": "Введен не верный номер. Попробуйте еще раз",
+                "handler": "handler_set_flight",
+                "next_step": "step_5"
+            },
+            "step_5": {
+                "text": "Какое количество мест вам потребуется (от 1 до 5)?",
+                "failure_text": "Получено недопустимое значение. Пожалуйста введите цифру от 1 до 5 ",
+                "handler": "handler_number_of_seats",
+                "next_step": "step_6"
+            },
+            "step_6": {
+                "text": "Вы можете оставить комментарий к вашему заказу",
+                "failure_text": None,
+                "handler": "handler_comment",
+                "next_step": "step_7"
+            },
+            "step_7": {
+                "text": "Пожалуйста, перед продолжением проверьте введенные вами данные."
+                        "Введите \"да\" или \"нет\", для подтверждения данных или отмены заказа.\n{checked_data}",
+                "failure_text": 'Неверная команда. Пожалуйста введите \"да\" или \"нет\" для продолжения',
+                "handler": "handler_check_data",
+                "next_step": "step_8"
+            },
+            "step_8": {
+                "text": "Введите ваш номер телефона для связи",
+                "failure_text": "Не правильно введен номер. Попрубуйте еще раз",
+                "handler": "handler_telephone_number",
+                "next_step": "step_9"
+            },
+            "step_9": {
+                "text": "Спасибо за заказ. Через некоторое время с вами свяжется оператор по телефону "
+                        "{telephone_number}",
+                "failure_text": None,
+                "image": "generate_ticket_handler",
+                "handler": None,
+                "next_step": None
+            },
+        }
+    }
+
+}
+
+DEFAULT_ANSWER = "Отправьте боту сообщение:\n/ticket - чтобы оформить билет\n/help - для вывода этого сообщения."
+
+DB_CONFIG = {
+    "provider": "postgres",
+    "user": "dbuser",
+    "password": "dbpassword",
+    "host": "localhost",
+    "database": "vk_bot_db"
+}
