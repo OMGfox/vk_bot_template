@@ -2,12 +2,9 @@ import random
 from random import randint
 
 import requests
-from pony.orm import ObjectNotFound
+from pony.orm import ObjectNotFound, db_session
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType, VkBotEvent
 import vk_api
-import logging.config
-from logs.logging_config import log_config
-from settings import INTENTS, SCENARIOS, DEFAULT_ANSWER
 import handlers
 from db.models import *
 
@@ -21,7 +18,9 @@ class VkBot:
         vk bot with a mystery functionality
     """
 
-    def __init__(self, token, group_id):
+    def __init__(self, token, group_id, settings):
+        init(settings.DB_CONFIG)
+        self.settings = settings
         self.token = token
         self.group_id = group_id
         self.vk_session = vk_api.VkApi(token=self.token)
@@ -85,7 +84,7 @@ class VkBot:
             stream_logger.info(msg=f'MESSAGE_NEW from: {peer_id} with text: "{text}"')
             file_logger.info(msg=f'MESSAGE_NEW from: {peer_id} with text: "{text}"')
 
-            for intent in INTENTS:
+            for intent in self.settings.INTENTS:
                 if any(token in text for token in intent['tokens']):
                     if intent['answer']:
                         self.send_message(peer_id=peer_id, message=intent['answer'])
@@ -96,7 +95,7 @@ class VkBot:
                 try:
                     self._scenario_steps_handling(peer_id, text)
                 except ObjectNotFound:
-                    self.send_message(peer_id=peer_id, message=DEFAULT_ANSWER)
+                    self.send_message(peer_id=peer_id, message=self.settings.DEFAULT_ANSWER)
         else:
             file_logger.debug(msg=f"New event with type: {event.type} ignored")
 
@@ -110,14 +109,14 @@ class VkBot:
         scenario_name = intent['scenario']
         stream_logger.info(msg=f'new scenario started for user {peer_id}, name {scenario_name}"')
         file_logger.info(msg=f'new scenario started for user {peer_id}, name {scenario_name}"')
-        first_step = SCENARIOS[scenario_name]['first_step']
+        first_step = self.settings.SCENARIOS[scenario_name]['first_step']
         try:
             state = UserState[peer_id]
             state.set(scenario_name=scenario_name, step_name=first_step, context=dict())
         except ObjectNotFound:
             UserState(user_id=peer_id, scenario_name=scenario_name, step_name=first_step, context=dict())
-        answer = SCENARIOS[scenario_name]['steps'][first_step]['text']
-        step = SCENARIOS[scenario_name]['steps'][first_step]
+        answer = self.settings.SCENARIOS[scenario_name]['steps'][first_step]['text']
+        step = self.settings.SCENARIOS[scenario_name]['steps'][first_step]
         self.send_step(step=step, user_id=peer_id, text=answer, context={})
 
     def _scenario_steps_handling(self, peer_id, text):
@@ -130,19 +129,19 @@ class VkBot:
         state = UserState[peer_id]
         scenario_name = state.scenario_name
         step_name = state.step_name
-        handler_name = SCENARIOS[scenario_name]['steps'][step_name]['handler']
+        handler_name = self.settings.SCENARIOS[scenario_name]['steps'][step_name]['handler']
         handler = getattr(handlers, handler_name)
         if handler(text=text, context=state.context):
-            next_step = SCENARIOS[scenario_name]['steps'][step_name]['next_step']
+            next_step = self.settings.SCENARIOS[scenario_name]['steps'][step_name]['next_step']
             if self._is_current_user_session_ended(state.context):
                 self.send_message(peer_id=peer_id,
                                   message="По вашему запросу не найдено ни одного рейса. Либо сценарий завершен "
                                           "пользователем")
                 state.delete()
                 return
-            answer = SCENARIOS[scenario_name]['steps'][next_step]['text']
+            answer = self.settings.SCENARIOS[scenario_name]['steps'][next_step]['text']
             state.step_name = next_step
-            step = SCENARIOS[scenario_name]['steps'][next_step]
+            step = self.settings.SCENARIOS[scenario_name]['steps'][next_step]
             self.send_step(step=step, user_id=peer_id, text=answer.format(**state.context), context=state.context)
 
             if self._is_last_scenario_step(scenario_name, next_step):
@@ -155,7 +154,7 @@ class VkBot:
                             telephone_number=state.context["telephone_number"])
                 state.delete()
         else:
-            answer = SCENARIOS[scenario_name]['steps'][step_name]['failure_text']
+            answer = self.settings.SCENARIOS[scenario_name]['steps'][step_name]['failure_text']
             if answer:
                 self.send_message(peer_id, answer.format(**state.context))
 
@@ -166,8 +165,8 @@ class VkBot:
         @param next_step: str
         @return: bool
         """
-        has_next_step = bool(SCENARIOS[scenario_name]['steps'][next_step]['next_step'])
-        has_failure_text = bool(SCENARIOS[scenario_name]['steps'][next_step]['failure_text'])
+        has_next_step = bool(self.settings.SCENARIOS[scenario_name]['steps'][next_step]['next_step'])
+        has_failure_text = bool(self.settings.SCENARIOS[scenario_name]['steps'][next_step]['failure_text'])
         if not has_next_step and not has_failure_text:
             return True
         return False

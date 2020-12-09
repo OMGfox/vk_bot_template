@@ -1,5 +1,10 @@
-from pony.orm import Database, Required, PrimaryKey, Json, db_session
-from settings import DB_CONFIG
+from pony.orm import Database, Required, PrimaryKey, Json, BindingError
+import logging.config
+from logs.logging_config import log_config
+
+logging.config.dictConfig(log_config)
+stream_logger = logging.getLogger('stream_logger')
+file_logger = logging.getLogger('file_logger')
 
 db = Database()
 
@@ -27,5 +32,10 @@ class TicketOrder(db.Entity):
     telephone_number = Required(str)
 
 
-db.bind(**DB_CONFIG)
-db.generate_mapping(create_tables=True)
+def init(db_config):
+    try:
+        db.bind(**db_config)
+        db.generate_mapping(create_tables=True)
+    except BindingError:
+        stream_logger.exception("Exception while binding of database.")
+        file_logger.exception("Exception while binding of database.")

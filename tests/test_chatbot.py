@@ -15,9 +15,10 @@ logging.disable()
 
 def isolate_db(test_func):
     def wrapper(*args, **kwargs):
-        with db_session as session:
+        with db_session:
             test_func(*args, **kwargs)
             rollback()
+
     return wrapper
 
 
@@ -27,6 +28,47 @@ class BotTestCase(unittest.TestCase):
                             'text': '/help', 'conversation_message_id': 44, 'fwd_messages': [], 'important': False,
                             'random_id': 0, 'attachments': [], 'is_hidden': False},
                  'group_id': 199740511, 'event_id': 'ecb5f633e170b5093d53afcbf993526818c20903'}
+
+    SETTINGS = Mock()
+    SETTINGS.INTENTS = [
+        {
+            "name": "Help",
+            "tokens": ("/help",),
+            "scenario": None,
+            "answer": "Отправьте боту сообщение:\n/ticket - чтобы оформить билет\n/help - для вывода этого сообщения."
+        },
+        {
+            "name": "Booking a ticket",
+            "tokens": ("/ticket",),
+            "scenario": "booking_a_ticket",
+            "answer": None
+        }
+    ]
+    SETTINGS.SCENARIOS = {
+        "booking_a_ticket": {
+            "first_step": "step_1",
+            "steps": {
+                "step_1": {
+                    "text": "Введите город отправления",
+                    "failure_text": "Введенный вами город не найден. возможно вам подойдет один из следующего списка:"
+                                    " {departure_cities}",
+                    "handler": "handler_departure_city",
+                    "next_step": "step_2"
+                },
+            }
+        }
+    }
+
+    SETTINGS.DEFAULT_ANSWER = ("Отправьте боту сообщение:\n/ticket - чтобы оформить билет"
+                               "\n/help - для вывода этого сообщения.")
+
+    SETTINGS.DB_CONFIG = {
+        "provider": "postgres",
+        "user": "dbuser",
+        "password": "dbpassword",
+        "host": "localhost",
+        "database": "vk_bot_db"
+    }
 
     def test_run(self):
         count = 5
@@ -38,7 +80,7 @@ class BotTestCase(unittest.TestCase):
 
         with patch('bot.VkBot'):
             with patch('bot.VkBotLongPoll', return_value=long_poll_listen_mock):
-                vk_bot = VkBot(' ', ' ')
+                vk_bot = VkBot(' ', ' ', self.SETTINGS)
                 vk_bot.on_event = Mock()
                 vk_bot.run()
                 vk_bot.on_event.assert_any_call(obj)
@@ -48,7 +90,7 @@ class BotTestCase(unittest.TestCase):
         event = VkBotMessageEvent(raw=self.RAW_EVENT)
         with patch('bot.vk_api.VkApi'):
             with patch('bot.VkBotLongPoll'):
-                bot = VkBot(' ', ' ')
+                bot = VkBot(' ', ' ', self.SETTINGS)
                 bot.send_message = Mock()
                 bot.on_event(event)
                 text = 'Отправьте боту сообщение:\n/ticket - чтобы оформить билет\n/help - для вывода этого сообщения.'
@@ -64,7 +106,7 @@ class BotTestCase(unittest.TestCase):
         event = VkBotMessageEvent(raw=raw_event)
         with patch('bot.vk_api.VkApi'):
             with patch('bot.VkBotLongPoll'):
-                bot = VkBot(' ', ' ')
+                bot = VkBot(' ', ' ', self.SETTINGS)
                 bot.send_message = Mock()
                 bot.on_event(event)
                 text = 'Введите город отправления'
@@ -85,7 +127,7 @@ class BotTestCase(unittest.TestCase):
         }
         with patch('bot.vk_api.VkApi'):
             with patch('bot.VkBotLongPoll'):
-                bot = VkBot(' ', ' ')
+                bot = VkBot(' ', ' ', self.SETTINGS)
                 bot.send_message = Mock()
                 bot._start_scenario = Mock()
                 bot.on_event(event)
@@ -97,7 +139,7 @@ class BotTestCase(unittest.TestCase):
         event = VkBotMessageEvent(raw=raw_event)
         with patch('bot.vk_api.VkApi'):
             with patch('bot.VkBotLongPoll'):
-                bot = VkBot(' ', ' ')
+                bot = VkBot(' ', ' ', self.SETTINGS)
                 bot.send_message = Mock()
                 bot._scenario_steps_handling = Mock()
                 bot.on_event(event)
@@ -108,7 +150,7 @@ class BotTestCase(unittest.TestCase):
 
         with patch('bot.vk_api.VkApi'):
             with patch('bot.VkBotLongPoll'):
-                bot = VkBot(' ', ' ')
+                bot = VkBot(' ', ' ', self.SETTINGS)
                 bot.vk = Mock()
                 bot.vk.messages.send = send_mock
 
