@@ -1,5 +1,5 @@
 # vk bot template
-The simulation of booking a plane ticket
+The simulation of the booking a plane ticket
 
 ### install and running
 You need to have the installed database like a postgres or sqlite3 before starting<br>
