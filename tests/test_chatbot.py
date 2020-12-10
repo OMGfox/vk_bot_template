@@ -63,11 +63,8 @@ class BotTestCase(unittest.TestCase):
                                "\n/help - для вывода этого сообщения.")
 
     SETTINGS.DB_CONFIG = {
-        "provider": "postgres",
-        "user": "dbuser",
-        "password": "dbpassword",
-        "host": "localhost",
-        "database": "vk_bot_db"
+        "provider": 'sqlite',
+        "filename": ':memory:'
     }
 
     def test_run(self):
